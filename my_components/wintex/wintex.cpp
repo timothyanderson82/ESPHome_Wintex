@@ -63,44 +63,36 @@ void WintexZone::setup(Wintex *wintex, uint32_t zone_base_address, uint16_t zone
   if (setup_)
     return;
   setup_ = true;
-  if (get_name() == "")
-    set_name(zone_name);
-  std::string name = get_name();
-  App.register_binary_sensor(this);
+  // Name was set at compile time by Python codegen; fall back to zone_name if empty
+  std::string name = get_name().str();
+  if (name.empty())
+    name = zone_name;
   uint16_t zone = this->zone_ - 1;
   status = new WintexBinarySensor(zone_base_address, zone_group_size, zone, 0x01);
-  status->set_name(name + " status");
-  status->set_internal(true);
+  status->register_as_binary_sensor(name + " status", true);
   status->add_on_state_callback([this](bool state) {
     this->publish_state(state);
   });
   wintex->register_sensor(status);
-  App.register_binary_sensor(status);
   tamper = new WintexBinarySensor(zone_base_address, zone_group_size, zone, 0x02);
-  tamper->set_name(name + " tamper");
+  tamper->register_as_binary_sensor(name + " tamper");
   wintex->register_sensor(tamper);
-  App.register_binary_sensor(tamper);
   test = new WintexBinarySensor(zone_base_address, zone_group_size, zone, 0x08);
-  test->set_name(name + " test");
+  test->register_as_binary_sensor(name + " test");
   wintex->register_sensor(test);
-  App.register_binary_sensor(test);
   alarmed = new WintexBinarySensor(zone_base_address, zone_group_size, zone, 0x10);
-  alarmed->set_name(name + " alarmed");
+  alarmed->register_as_binary_sensor(name + " alarmed");
   wintex->register_sensor(alarmed);
-  App.register_binary_sensor(alarmed);
   bypass = new WintexZoneBypassSwitch(wintex, zone_base_address, zone_group_size, zone);
-  bypass->set_name(name + " bypassed");
+  bypass->register_as_switch(name + " bypassed");
   wintex->register_sensor(bypass);
-  App.register_switch(bypass);
   auto_bypassed = new WintexBinarySensor(zone_base_address, zone_group_size, zone, 0x40);
-  auto_bypassed->set_name(name + " auto bypassed");
+  auto_bypassed->register_as_binary_sensor(name + " auto bypassed");
   wintex->register_sensor(auto_bypassed);
-  App.register_binary_sensor(auto_bypassed);
   // Should only enable this once we are sorting the sensors by base address
   // faulty = new WintexBinarySensor(zone_base_address + 0x20, zone_group_size, zone_, 0x02);
-  // faulty->set_name(name + " faulty");
+  // faulty->register_as_binary_sensor(name + " faulty");
   // wintex->register_sensor(faulty);
-  // App.register_binary_sensor(faulty);
 }
 
 void Wintex::setup() {
@@ -281,8 +273,8 @@ void Wintex::send_command_now_(AsyncWintexCommand command) {
 
   uint8_t len = (uint8_t)(command.payload.size()) + 3;
 
-  ESP_LOGV(TAG, "%d: Sending Wintex: CMD=0x%02X DATA=[%s] lock=%u", last_command_timestamp_, static_cast<uint8_t>(command.cmd),
-           format_hex_pretty(command.payload).c_str(), this->command_queue_lock_);
+  ESP_LOGV(TAG, "%d: Sending Wintex: CMD=0x%02X DATA=[%s]", last_command_timestamp_, static_cast<uint8_t>(command.cmd),
+           format_hex_pretty(command.payload).c_str());
 
   write_array({len, (uint8_t) command.cmd});
   if (!command.payload.empty())

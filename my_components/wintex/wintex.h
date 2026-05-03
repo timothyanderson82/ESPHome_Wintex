@@ -128,11 +128,19 @@ class WintexBinarySensor : public WintexSensorBase, public binary_sensor::Binary
     mask_ = mask;
   }
 
+  void register_as_binary_sensor(const std::string &name, bool internal = false) {
+    name_storage_ = name;
+    uint32_t hash = fnv1_hash_object_id(name_storage_.c_str(), name_storage_.size());
+    uint32_t fields = internal ? (1u << 24) : 0;  // ENTITY_FIELD_INTERNAL_SHIFT = 24
+    App.register_binary_sensor(this, name_storage_.c_str(), hash, fields);
+  }
+
  protected:
   void update_state(const uint8_t *memory) override {
     this->publish_state(memory[offset_] & mask_);
   };
   uint8_t mask_;
+  std::string name_storage_;
 };
 
 class WintexSensor : public WintexSensorBase, public sensor::Sensor {
@@ -156,9 +164,15 @@ class WintexSwitch : public WintexSensorBase, public WintexResponseHandler, publ
     }
     virtual void write_state(bool state) = 0;
 
+    void register_as_switch(const std::string &name) {
+      name_storage_ = name;
+      uint32_t hash = fnv1_hash_object_id(name_storage_.c_str(), name_storage_.size());
+      App.register_switch(this, name_storage_.c_str(), hash, 0);
+    }
   protected:
     Wintex *wintex_;
     uint8_t mask_;
+    std::string name_storage_;
     void update_state(const uint8_t *memory) override {
       this->publish_state(memory[offset_] & mask_);
     };

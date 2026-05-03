@@ -26,10 +26,9 @@ WintexSensor = wintex_ns.class_("WintexSensor", sensor.Sensor, cg.Component)
 WintexSwitch = wintex_ns.class_("WintexSwitch", switch.Switch, cg.Component)
 
 CONFIG_ZONE_SCHEMA = (
-    binary_sensor.BINARY_SENSOR_SCHEMA.extend(
+    binary_sensor.binary_sensor_schema(WintexZone).extend(
         cv.Schema(
             {
-                cv.GenerateID(): cv.declare_id(WintexZone),
                 cv.Required(CONF_ZONE): cv.positive_int,
             }
         )
@@ -57,8 +56,5 @@ async def to_code(config):
     if CONF_ZONES in config:
         for zone in config[CONF_ZONES]:
             z = cg.new_Pvariable(zone[CONF_ID], zone[CONF_ZONE])
-            if CONF_NAME in zone:
-                cg.add(z.set_name(zone[CONF_NAME]))
-            if CONF_DEVICE_CLASS in zone:
-                cg.add(z.set_device_class(zone[CONF_DEVICE_CLASS]))
+            await binary_sensor.register_binary_sensor(z, zone)
             cg.add(var.register_zone(z))

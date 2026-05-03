@@ -1,17 +1,17 @@
 esphome:
   name: alarm
-  platform: ESP32
-  board: esp32dev
   platformio_options:
     upload_speed: 460800
-  includes:
-    - stream_server.h
-    - stream_server.cpp
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
 
 external_components:
-  source: 
-    type: local
-    path: my_components
+  - source:
+      type: local
+      path: my_components
 
 wifi:
   ssid: !secret wifi_ssid
@@ -75,7 +75,7 @@ uart:
 #    data_bits: 8
 #    parity: none
 #    stop_bits: 1
-  - id: uart1
+  - id: uart_panel
     tx_pin: GPIO26
     rx_pin: GPIO27
       # baud_rate: 9600
@@ -83,7 +83,7 @@ uart:
     data_bits: 8
     parity: none
     stop_bits: 2
-  - id: uart2
+  - id: uart_debug
     tx_pin: GPIO17
     rx_pin: GPIO16
     baud_rate: 19200
@@ -91,18 +91,14 @@ uart:
     parity: none
     stop_bits: 2
   
-custom_component:
-  - lambda: |-
-      auto stream_server1 = new StreamServerComponent(id(uart1));
-      stream_server1->set_port(10000);
-      return {stream_server1};
-#  - lambda: |-
-#      auto stream_server2 = new StreamServerComponent(id(uart2));
-#      stream_server2->set_port(10001);
-#      return {stream_server2};
+stream_server:
+  - uart_id: uart_panel
+    port: 10000
+#  - uart_id: uart_debug
+#    port: 10001
 
 wintex:
-  uart_id: uart2
+  uart_id: uart_debug
   udl: !secret udl
   zones:
      - zone: 1
