@@ -11,7 +11,7 @@ esp32:
 external_components:
   - source:
       type: local
-      path: my_components
+      path: components
 
 wifi:
   ssid: !secret wifi_ssid
