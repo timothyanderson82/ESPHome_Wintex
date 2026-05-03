@@ -132,7 +132,8 @@ class WintexBinarySensor : public WintexSensorBase, public binary_sensor::Binary
     name_storage_ = name;
     uint32_t hash = fnv1_hash_object_id(name_storage_.c_str(), name_storage_.size());
     uint32_t fields = internal ? (1u << 24) : 0;  // ENTITY_FIELD_INTERNAL_SHIFT = 24
-    App.register_binary_sensor(this, name_storage_.c_str(), hash, fields);
+    this->configure_entity_(name_storage_.c_str(), hash, fields);
+    App.register_binary_sensor(this);
   }
 
  protected:
@@ -167,7 +168,8 @@ class WintexSwitch : public WintexSensorBase, public WintexResponseHandler, publ
     void register_as_switch(const std::string &name) {
       name_storage_ = name;
       uint32_t hash = fnv1_hash_object_id(name_storage_.c_str(), name_storage_.size());
-      App.register_switch(this, name_storage_.c_str(), hash, 0);
+      this->configure_entity_(name_storage_.c_str(), hash, 0);
+      App.register_switch(this);
     }
   protected:
     Wintex *wintex_;
