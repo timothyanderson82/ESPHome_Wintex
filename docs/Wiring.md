@@ -58,9 +58,11 @@ A3, A4  (unused)               B3, B4  (unused)
 
 ## ESP32 UART Pin Assignments
 
+Only **one UART** is physically wired to the panel at a time — `uart_s` on GPIO26/27 via the level shifter. `uart_w` (GPIO17/16) is declared in the YAML but left unconnected; it is reserved for future use.
+
 ```yaml
 uart:
-  - id: uart_s          # StreamServer — Wintex PC software bridge
+  - id: uart_s          # Panel UART — used by wintex component OR stream_server (not both)
     tx_pin: GPIO26
     rx_pin: GPIO27
     baud_rate: 19200
@@ -68,7 +70,7 @@ uart:
     parity: none
     stop_bits: 2
 
-  - id: uart_w          # Wintex component — zone status polling
+  - id: uart_w          # Unused — reserved, no physical connection required
     tx_pin: GPIO17
     rx_pin: GPIO16
     baud_rate: 19200
@@ -77,7 +79,38 @@ uart:
     stop_bits: 2
 ```
 
-> Both `uart_s` and `uart_w` connect to the **same** panel COM1 port (pins 2 & 3). Both share the same level-shifted TX/RX lines.
+---
+
+## Operating Modes
+
+The physical wiring is **identical** for both modes. Only the firmware changes.
+
+### Mode 1 — Wintex component (normal operation)
+
+The `wintex` component owns `uart_s` and polls the panel for zone status, reporting to Home Assistant.
+
+```yaml
+wintex:
+  uart_id: uart_s
+  udl: !secret udl
+  zones:
+    - zone: 1
+      name: "Front Door"
+      device_class: door
+    # ... more zones
+```
+
+### Mode 2 — Stream Server (protocol debugging)
+
+The `stream_server` component owns `uart_s` and bridges raw UART bytes to a TCP socket on port 10000. Connect Wintex PC software via a virtual COM port (e.g. HW VSP3 → `10.0.8.184:10000`) to interact with the panel directly and observe the protocol in ESPHome logs.
+
+```yaml
+stream_server:
+  - uart_id: uart_s
+    port: 10000
+```
+
+> ⚠️ `stream_server` and `wintex` **cannot share a UART** — only one may be active at a time. Comment out the other before flashing.
 
 ---
 
