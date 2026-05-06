@@ -99,7 +99,7 @@ void Wintex::setup() {
   last_command_timestamp_ = millis();
   this->login_ = AsyncWintexCommand{
     .cmd = WintexCommandType::SESSION,
-    .payload = std::vector<uint8_t>{udl_.begin(), udl_.end()},
+    .payload = {},  // SESSION takes no payload — panel responds with panel info
     .callback = [this](WintexResponse response) {
         return this->handle_login_(response);
       },
@@ -108,25 +108,13 @@ void Wintex::setup() {
 }
 
 optional<AsyncWintexCommand> Wintex::handle_login_(WintexResponse response) {
-  if (response.type == WintexResponseType::SESSION) {
-    if (response.len == 16) {
-      // check it is a valid string made up of printable characters
-      bool valid = true;
-      for (int i = 0; i < response.len; i++) {
-        if (!std::isprint(response.data[i])) {
-          valid = false;
-          break;
-        }
-      }
-      if (valid) {
-        product_ = std::string(reinterpret_cast<const char *>(response.data), response.len);
-        ESP_LOGI(TAG, "Authenticated, product: [%s]", product_.c_str());
-        init_state_ = WintexInitState::AUTH;
-        setup_zones_();
-        this->update_sensors_();
-        return {};
-      }
-    }
+  if (response.type == WintexResponseType::SESSION && response.len > 0) {
+    product_ = format_hex_pretty(response.data, response.len);
+    ESP_LOGI(TAG, "Authenticated! Panel info: [%s]", product_.c_str());
+    init_state_ = WintexInitState::AUTH;
+    setup_zones_();
+    this->update_sensors_();
+    return {};
   }
   ESP_LOGW(TAG, "Authentication failed (type=0x%02X len=%u)", (uint8_t) response.type, response.len);
   return {};
