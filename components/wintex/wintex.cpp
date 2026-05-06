@@ -219,6 +219,14 @@ void Wintex::handle_char_(uint8_t c) {
   rx_message_.push_back(c);
   optional<WintexResponse> response = this->parse_response_();
   if (response.has_value() && this->current_command_.has_value()) {
+    // The panel sends an ACK (0x06) before the actual SESSION response.
+    // Ignore it and keep current_command_ alive so we catch the real response.
+    if (response.value().type == WintexResponseType::ACK
+        && this->current_command_->cmd == WintexCommandType::SESSION) {
+      ESP_LOGV(TAG, "ACK received for SESSION command — waiting for SESSION response");
+      rx_message_.clear();
+      return;
+    }
     std::function<optional<AsyncWintexCommand>(WintexResponse)> callback = this->current_command_->callback;
     this->current_command_ = {};
     optional<AsyncWintexCommand> command = callback(response.value());
