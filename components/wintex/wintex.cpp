@@ -103,7 +103,7 @@ void Wintex::setup() {
   last_command_timestamp_ = millis();
   this->login_ = AsyncWintexCommand{
     .cmd = WintexCommandType::SESSION,
-    .payload = {},  // SESSION takes no payload — panel responds with panel info
+    .payload = std::vector<uint8_t>{udl_.begin(), udl_.end()},
     .callback = [this](WintexResponse response) {
         return this->handle_login_(response);
       },
@@ -113,7 +113,19 @@ void Wintex::setup() {
 
 optional<AsyncWintexCommand> Wintex::handle_login_(WintexResponse response) {
   if (response.type == WintexResponseType::SESSION && response.len > 0) {
-    product_ = format_hex_pretty(response.data, response.len);
+    // Premier 832 (old protocol): 16-byte ASCII product name
+    // Premier 412 (new protocol): 8-byte binary panel info
+    bool is_ascii = (response.len == 16);
+    if (is_ascii) {
+      for (size_t i = 0; i < response.len; i++) {
+        if (!std::isprint(response.data[i])) { is_ascii = false; break; }
+      }
+    }
+    if (is_ascii) {
+      product_ = std::string(reinterpret_cast<const char *>(response.data), response.len);
+    } else {
+      product_ = format_hex_pretty(response.data, response.len);
+    }
     ESP_LOGI(TAG, "Authenticated! Panel info: [%s]", product_.c_str());
     init_state_ = WintexInitState::AUTH;
     setup_zones_();
