@@ -120,15 +120,15 @@ optional<AsyncWintexCommand> Wintex::handle_login_(WintexResponse response) {
       }
       if (valid) {
         product_ = std::string(reinterpret_cast<const char *>(response.data), response.len);
-        ESP_LOGV("Successful authentication, product [%s]", product_.c_str());
+        ESP_LOGI(TAG, "Authenticated, product: [%s]", product_.c_str());
         init_state_ = WintexInitState::AUTH;
         setup_zones_();
         this->update_sensors_();
+        return {};
       }
     }
   }
-  ESP_LOGE(TAG, "Authentication failed");
-  product_ = R"({"p":"INVALID"})";
+  ESP_LOGW(TAG, "Authentication failed (type=0x%02X len=%u)", (uint8_t) response.type, response.len);
   return {};
 }
 
@@ -149,7 +149,7 @@ void Wintex::loop() {
     handle_char_(c);
   }
   if (millis() - last_command_timestamp_ > 10000) {
-    // Timeout waiting for response — clear stuck command/queue and re-login.
+    ESP_LOGW(TAG, "Command timeout — clearing queue and re-attempting login");
     this->current_command_ = {};
     this->command_queue_.clear();
     this->rx_message_.clear();
