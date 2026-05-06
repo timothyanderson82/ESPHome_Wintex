@@ -5,3 +5,5 @@
 /secrets.yaml
 __pycache__/
 test.yaml
+test_wintex.yaml
+test_stream.yaml
