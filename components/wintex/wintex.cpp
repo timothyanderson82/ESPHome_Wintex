@@ -67,26 +67,30 @@ void WintexZone::setup(Wintex *wintex, uint32_t zone_base_address, uint16_t zone
   std::string name = get_name().str();
   if (name.empty())
     name = zone_name;
-  uint16_t zone = this->zone_ - 1;
-  status = new WintexBinarySensor(zone_base_address, zone_group_size, zone, 0x01);
+  uint16_t zone_idx = this->zone_ - 1;
+  // Each block holds zone_group_size zones; blocks are spaced 0x20 apart in memory.
+  uint16_t block = zone_idx / zone_group_size;
+  uint8_t block_offset = zone_idx % zone_group_size;
+  uint32_t block_address = zone_base_address + block * 0x20;
+  status = new WintexBinarySensor(block_address, zone_group_size, block_offset, 0x01);
   status->register_as_binary_sensor(name + " status", true);
   status->add_on_state_callback([this](bool state) {
     this->publish_state(state);
   });
   wintex->register_sensor(status);
-  tamper = new WintexBinarySensor(zone_base_address, zone_group_size, zone, 0x02);
+  tamper = new WintexBinarySensor(block_address, zone_group_size, block_offset, 0x02);
   tamper->register_as_binary_sensor(name + " tamper");
   wintex->register_sensor(tamper);
-  test = new WintexBinarySensor(zone_base_address, zone_group_size, zone, 0x08);
+  test = new WintexBinarySensor(block_address, zone_group_size, block_offset, 0x08);
   test->register_as_binary_sensor(name + " test");
   wintex->register_sensor(test);
-  alarmed = new WintexBinarySensor(zone_base_address, zone_group_size, zone, 0x10);
+  alarmed = new WintexBinarySensor(block_address, zone_group_size, block_offset, 0x10);
   alarmed->register_as_binary_sensor(name + " alarmed");
   wintex->register_sensor(alarmed);
-  bypass = new WintexZoneBypassSwitch(wintex, zone_base_address, zone_group_size, zone);
+  bypass = new WintexZoneBypassSwitch(wintex, block_address, zone_group_size, block_offset);
   bypass->register_as_switch(name + " bypassed");
   wintex->register_sensor(bypass);
-  auto_bypassed = new WintexBinarySensor(zone_base_address, zone_group_size, zone, 0x40);
+  auto_bypassed = new WintexBinarySensor(block_address, zone_group_size, block_offset, 0x40);
   auto_bypassed->register_as_binary_sensor(name + " auto bypassed");
   wintex->register_sensor(auto_bypassed);
   // Should only enable this once we are sorting the sensors by base address
@@ -239,6 +243,17 @@ void Wintex::update_sensors_() {
 }
 
 optional<AsyncWintexCommand> Wintex::handle_sensors_(WintexResponse response) {
+  if (response.type != WintexResponseType::READ_VOLATILE || response.len < 4) {
+    ESP_LOGW(TAG, "Unexpected sensor response: type=0x%02X len=%u — advancing to next sensor",
+             (uint8_t) response.type, response.len);
+    current_sensor_ = (current_sensor_ + 1) % std::max((size_t)1, sensors_.size());
+    auto sensor = sensors_[current_sensor_];
+    return AsyncWintexCommand{
+      .cmd = WintexCommandType::READ_VOLATILE,
+      .payload = read_payload(sensor->get_address(), sensor->get_length()),
+      .callback = [this](WintexResponse r) { return this->handle_sensors_(r); }
+    };
+  }
   uint32_t address = (response.data[0] << 16) | (response.data[1] << 8) | response.data[2];
   uint8_t length = response.data[3];
   const uint8_t *data = &response.data[4];
@@ -319,7 +334,7 @@ void Wintex::register_zone(WintexZone *zone){
 
 void Wintex::setup_zones_(){
   for (WintexZone *zone: this->zones_) {
-    zone->setup(this, (uint32_t) 0x4f8, (uint16_t) 0x20, "");
+    zone->setup(this, (uint32_t) 0x4EC, (uint16_t) 8, "");
   }
 }
 
