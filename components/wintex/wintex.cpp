@@ -149,6 +149,11 @@ void Wintex::loop() {
     handle_char_(c);
   }
   if (millis() - last_command_timestamp_ > 10000) {
+    // Timeout waiting for response — clear stuck command/queue and re-login.
+    this->current_command_ = {};
+    this->command_queue_.clear();
+    this->rx_message_.clear();
+    last_command_timestamp_ = millis();
     queue_command_(login_);
   }
   process_command_queue_();
