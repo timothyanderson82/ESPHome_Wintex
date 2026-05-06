@@ -49,20 +49,24 @@ VA  ←── ESP32 3V3              VB  ←── ESP32 5V
 GND ←── ESP32 GND              GND ←── Panel GND (Pin 1)
 OE  ←── ESP32 3V3 (enable)
 
-A1  ←── ESP32 GPIO26 (TX1)     B1  ───→ Panel RX (Pin 3)
-A2  ───→ ESP32 GPIO27 (RX1)    B2  ←── Panel TX (Pin 2)
-A3, A4  (unused)               B3, B4  (unused)
+A1  ←── ESP32 GPIO26 (uart_s TX)   B1  ───→ Panel RX (Pin 3)
+A2  ───→ ESP32 GPIO27 (uart_s RX)  B2  ←── Panel TX (Pin 2)
+A3  ←── ESP32 GPIO17 (uart_w TX)   B3  ───→ Panel RX (Pin 3) ← same wire as B1
+A4  ───→ ESP32 GPIO16 (uart_w RX)  B4  ←── Panel TX (Pin 2) ← same wire as B2
 ```
 
 ---
 
 ## ESP32 UART Pin Assignments
 
-Only **one UART** is physically wired to the panel at a time — `uart_s` on GPIO26/27 via the level shifter. `uart_w` (GPIO17/16) is declared in the YAML but left unconnected; it is reserved for future use.
+The original design connects **both UARTs to the same panel COM1 port**, each serving a different purpose:
+
+- `uart_s` (GPIO26/27) → **stream_server** — TCP bridge for Wintex PC software (passive, only active when a PC connects)
+- `uart_w` (GPIO17/16) → **wintex component** — zone status polling for Home Assistant
 
 ```yaml
 uart:
-  - id: uart_s          # Panel UART — used by wintex component OR stream_server (not both)
+  - id: uart_s          # stream_server — Wintex PC software TCP bridge
     tx_pin: GPIO26
     rx_pin: GPIO27
     baud_rate: 19200
@@ -70,7 +74,7 @@ uart:
     parity: none
     stop_bits: 2
 
-  - id: uart_w          # Unused — reserved, no physical connection required
+  - id: uart_w          # wintex component — zone status polling
     tx_pin: GPIO17
     rx_pin: GPIO16
     baud_rate: 19200
@@ -79,30 +83,26 @@ uart:
     stop_bits: 2
 ```
 
+> ⚠️ Both UARTs connect to panel COM1 (same pins 2 & 3). This means both level shifter channel pairs (A1/B1 and A2/B2 for one, A3/B3 and A4/B4 for the other) wire to the same panel TX and RX lines.  
+> **Do not use both simultaneously** — if Wintex PC software is actively connected via the stream_server, disconnect the wintex component to avoid bus conflicts.
+
 ---
 
 ## Operating Modes
 
-The physical wiring is **identical** for both modes. Only the firmware changes.
+### Mode 1 — Wintex component only (normal HA operation)
 
-### Mode 1 — Wintex component (normal operation)
-
-The `wintex` component owns `uart_s` and polls the panel for zone status, reporting to Home Assistant.
+Comment out `stream_server`, use `wintex` on `uart_w`:
 
 ```yaml
 wintex:
-  uart_id: uart_s
+  uart_id: uart_w
   udl: !secret udl
-  zones:
-    - zone: 1
-      name: "Front Door"
-      device_class: door
-    # ... more zones
 ```
 
-### Mode 2 — Stream Server (protocol debugging)
+### Mode 2 — Stream server only (protocol debugging)
 
-The `stream_server` component owns `uart_s` and bridges raw UART bytes to a TCP socket on port 10000. Connect Wintex PC software via a virtual COM port (e.g. HW VSP3 → `10.0.8.184:10000`) to interact with the panel directly and observe the protocol in ESPHome logs.
+Comment out `wintex`, use `stream_server` on `uart_s`. Connect Wintex PC software via a virtual COM port (e.g. HW VSP3 → `<device-ip>:10000`):
 
 ```yaml
 stream_server:
@@ -110,7 +110,19 @@ stream_server:
     port: 10000
 ```
 
-> ⚠️ `stream_server` and `wintex` **cannot share a UART** — only one may be active at a time. Comment out the other before flashing.
+### Mode 3 — Both (original design intent)
+
+Both components active on separate UARTs, both wired to panel COM1. Works in practice because stream_server is passive when no PC is connected:
+
+```yaml
+stream_server:
+  - uart_id: uart_s
+    port: 10000
+
+wintex:
+  uart_id: uart_w
+  udl: !secret udl
+```
 
 ---
 
@@ -131,13 +143,15 @@ Texecom Premier 412
 COM1 Header
 ┌─────────┐
 │ 1  GND  │────────────────────────────── GND (ESP32 + Level Shifter)
-│ 2  TX   │──→ B2 [Level Shifter] A2 ──→ GPIO27 (ESP32 RX1)
-│ 3  RX   │←── B1 [Level Shifter] A1 ←── GPIO26 (ESP32 TX1)
+│ 2  TX   │──→ B2 [Level Shifter] A2 ──→ GPIO27 (uart_s RX)
+│         │──→ B4 [Level Shifter] A4 ──→ GPIO16 (uart_w RX)
+│ 3  RX   │←── B1 [Level Shifter] A1 ←── GPIO26 (uart_s TX)
+│         │←── B3 [Level Shifter] A3 ←── GPIO17 (uart_w TX)
 │ 4  +12V │  (not connected)
 └─────────┘
 
 Level Shifter power:
   VA ←── ESP32 3V3
-  VB ←── ESP32 5V (USB)
+  VB ←── ESP32 5V (USB) or buck converter 5V
   OE ←── ESP32 3V3
 ```
