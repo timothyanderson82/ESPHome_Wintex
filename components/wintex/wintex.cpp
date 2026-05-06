@@ -101,9 +101,11 @@ void WintexZone::setup(Wintex *wintex, uint32_t zone_base_address, uint16_t zone
 
 void Wintex::setup() {
   last_command_timestamp_ = millis();
+  // Step 1 of login: empty SESSION to get initial panel info.
+  // On success, handle_login_() returns step 2 (UDL SESSION).
   this->login_ = AsyncWintexCommand{
     .cmd = WintexCommandType::SESSION,
-    .payload = std::vector<uint8_t>{udl_.begin(), udl_.end()},
+    .payload = {},
     .callback = [this](WintexResponse response) {
         return this->handle_login_(response);
       },
@@ -112,27 +114,40 @@ void Wintex::setup() {
 }
 
 optional<AsyncWintexCommand> Wintex::handle_login_(WintexResponse response) {
-  if (response.type == WintexResponseType::SESSION && response.len > 0) {
-    // Premier 832 (old protocol): 16-byte ASCII product name
-    // Premier 412 (new protocol): 8-byte binary panel info
-    bool is_ascii = (response.len == 16);
-    if (is_ascii) {
-      for (size_t i = 0; i < response.len; i++) {
-        if (!std::isprint(response.data[i])) { is_ascii = false; break; }
-      }
-    }
-    if (is_ascii) {
-      product_ = std::string(reinterpret_cast<const char *>(response.data), response.len);
-    } else {
-      product_ = format_hex_pretty(response.data, response.len);
-    }
-    ESP_LOGI(TAG, "Authenticated! Panel info: [%s]", product_.c_str());
-    init_state_ = WintexInitState::AUTH;
-    setup_zones_();
-    this->update_sensors_();
+  if (response.type != WintexResponseType::SESSION || response.len == 0) {
+    ESP_LOGW(TAG, "Login failed (type=0x%02X len=%u)", (uint8_t) response.type, response.len);
     return {};
   }
-  ESP_LOGW(TAG, "Authentication failed (type=0x%02X len=%u)", (uint8_t) response.type, response.len);
+
+  // Check if the response is printable ASCII (authenticated product name)
+  // vs binary panel info (initial handshake, UDL auth still needed).
+  bool is_ascii = true;
+  for (size_t i = 0; i < response.len; i++) {
+    if (!std::isprint(response.data[i])) { is_ascii = false; break; }
+  }
+
+  if (!is_ascii) {
+    // Step 1 response: binary panel info. Now send step 2 — UDL SESSION.
+    // UDL digits must be sent as raw numeric values, not ASCII characters.
+    std::vector<uint8_t> udl_payload;
+    for (char c : udl_) {
+      if (c >= '0' && c <= '9')
+        udl_payload.push_back(c - '0');
+    }
+    ESP_LOGV(TAG, "Initial SESSION OK — sending UDL SESSION (%u digits)", udl_payload.size());
+    return AsyncWintexCommand{
+      .cmd = WintexCommandType::SESSION,
+      .payload = udl_payload,
+      .callback = [this](WintexResponse r) { return this->handle_login_(r); },
+    };
+  }
+
+  // Step 2 response: ASCII product name — fully authenticated.
+  product_ = std::string(reinterpret_cast<const char *>(response.data), response.len);
+  ESP_LOGI(TAG, "Authenticated! Product: [%s]", product_.c_str());
+  init_state_ = WintexInitState::AUTH;
+  setup_zones_();
+  this->update_sensors_();
   return {};
 }
 
