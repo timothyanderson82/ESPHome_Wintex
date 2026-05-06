@@ -166,7 +166,17 @@ void Wintex::dump_config() {
 }
 
 optional<WintexResponse> Wintex::parse_response_() {
+  if (rx_message_.empty())
+    return {};
+
   size_t length = rx_message_[0];
+
+  if (length < 3) {
+    // Minimum valid message is 3 bytes (length + type + checksum).
+    // A length of 0-2 means garbage/noise on the RX line — discard it.
+    rx_message_.clear();
+    return {};
+  }
 
   if (rx_message_.size() < length)
     return {};
