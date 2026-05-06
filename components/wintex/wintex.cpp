@@ -153,7 +153,13 @@ void Wintex::loop() {
     handle_char_(c);
   }
   if (millis() - last_command_timestamp_ > 10000) {
-    ESP_LOGW(TAG, "Command timeout — clearing queue and re-attempting login");
+    if (!rx_message_.empty()) {
+      ESP_LOGW(TAG, "Command timeout — partial/stuck bytes in rx buffer: [%s]",
+               format_hex_pretty(&rx_message_[0], rx_message_.size()).c_str());
+    } else {
+      ESP_LOGW(TAG, "Command timeout — rx buffer empty (panel sent nothing after ACK)");
+    }
+    ESP_LOGW(TAG, "Clearing queue and re-attempting login");
     this->current_command_ = {};
     this->command_queue_.clear();
     this->rx_message_.clear();
