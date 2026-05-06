@@ -7,3 +7,4 @@ __pycache__/
 test.yaml
 test_wintex.yaml
 test_stream.yaml
+serial_log.py
