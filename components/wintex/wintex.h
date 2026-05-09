@@ -146,14 +146,21 @@ class WintexBinarySensor : public WintexSensorBase, public binary_sensor::Binary
 
 class WintexSensor : public WintexSensorBase, public sensor::Sensor {
  public:
-  WintexSensor(uint32_t address, uint8_t length, uint8_t offset) 
-    : WintexSensorBase(address, length, offset) {
+  WintexSensor(uint32_t address, uint8_t length, uint8_t offset)
+    : WintexSensorBase(address, length, offset) {}
+
+  void register_as_sensor(const std::string &name) {
+    name_storage_ = name;
+    uint32_t hash = fnv1_hash_object_id(name_storage_.c_str(), name_storage_.size());
+    this->configure_entity_(name_storage_.c_str(), hash, 0);
+    App.register_sensor(this);
   }
 
  protected:
-  void update_state(const uint8_t *memory) {
-    this->publish_state(memory[offset_] / 255 * 17.93);
+  void update_state(const uint8_t *memory) override {
+    this->publish_state((float) memory[offset_] / 255.0f * 17.93f);
   };
+  std::string name_storage_;
 };
 
 class WintexSwitch : public WintexSensorBase, public WintexResponseHandler, public switch_::Switch {
@@ -241,6 +248,7 @@ class Wintex : protected WintexResponseHandler, public Component, public uart::U
   void send_command_now_(AsyncWintexCommand command);
   optional<WintexResponse> parse_response_();
   void setup_zones_();
+  void setup_panel_sensors_();
   void update_sensors_();
 
   optional<AsyncWintexCommand> handle_login_(WintexResponse response);

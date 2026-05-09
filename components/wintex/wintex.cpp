@@ -369,6 +369,44 @@ void Wintex::setup_zones_(){
   for (WintexZone *zone: this->zones_) {
     zone->setup(this, (uint32_t) 0x4EC, (uint16_t) 8, "");
   }
+  setup_panel_sensors_();
+}
+
+void Wintex::setup_panel_sensors_() {
+  // Panel Status flags at 0x00EC
+  static const struct { uint8_t mask; const char *name; } status_flags[] = {
+    { 0x80, "Panel Box Tamper Open" },
+    { 0x10, "Auxiliary Input Active" },
+    { 0x04, "Auxiliary 12V Fuse Blown" },
+    { 0x02, "Local Expander Offline" },
+  };
+  for (auto &f : status_flags) {
+    auto *s = new WintexBinarySensor(0x00EC, 1, 0, f.mask);
+    s->register_as_binary_sensor(f.name);
+    register_sensor(s);
+  }
+
+  // Panel Outputs 1-8 at 0x0D58 (bit 0 = output 1, bit 7 = output 8)
+  for (int i = 0; i < 8; i++) {
+    char name[20];
+    snprintf(name, sizeof(name), "Panel Output %d", i + 1);
+    auto *s = new WintexBinarySensor(0x0D58, 1, 0, 1 << i);
+    s->register_as_binary_sensor(name);
+    register_sensor(s);
+  }
+
+  // System and Battery Voltages at 0x0E78 (offsets 0 and 2)
+  auto *sys_v = new WintexSensor(0x0E78, 4, 0);
+  sys_v->set_unit_of_measurement("V");
+  sys_v->set_accuracy_decimals(2);
+  sys_v->register_as_sensor("System Voltage");
+  register_sensor(sys_v);
+
+  auto *bat_v = new WintexSensor(0x0E78, 4, 2);
+  bat_v->set_unit_of_measurement("V");
+  bat_v->set_accuracy_decimals(2);
+  bat_v->register_as_sensor("Battery Voltage");
+  register_sensor(bat_v);
 }
 
 void Wintex::queue_command_(AsyncWintexCommand command) {
