@@ -18,12 +18,7 @@
 
 #include "esphome/core/component.h"
 #include "esphome/components/uart/uart.h"
-#ifdef ARDUINO_ARCH_ESP8266
-#include <ESPAsyncTCP.h>
-#else
-#include <freertos/FreeRTOS.h>
-#include <AsyncTCP.h>
-#endif
+#include "esphome/components/async_tcp/async_tcp.h"
 
 namespace esphome {
 namespace stream_server {
