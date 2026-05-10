@@ -3,6 +3,7 @@ import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import uart
 from esphome.const import CONF_ID, CONF_DEVICE_CLASS, CONF_NAME, CONF_PASSWORD
+from esphome.core import CORE
 
 CODEOWNERS = ["@RoganDawes"]
 
@@ -52,8 +53,13 @@ async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
     await uart.register_uart_device(var, config)
-    cg.add_define("USE_SENSOR")
-    cg.add_define("ESPHOME_ENTITY_SENSOR_COUNT", 10)  # capacity for auto-created sensors
+    # Reserve StaticVector capacity for auto-created C++ sensors:
+    # 4 panel status + 8 panel outputs = 12 binary sensors
+    for _ in range(12):
+        CORE.register_component_for_platform("binary_sensor", None)
+    # 2 voltage sensors (system + battery)
+    for _ in range(2):
+        CORE.register_component_for_platform("sensor", None)
     cg.add(var.set_udl(config[CONF_UDL]))
     if CONF_ZONES in config:
         for zone in config[CONF_ZONES]:
