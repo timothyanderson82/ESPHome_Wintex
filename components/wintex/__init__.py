@@ -53,6 +53,7 @@ async def to_code(config):
     await cg.register_component(var, config)
     await uart.register_uart_device(var, config)
     cg.add_define("USE_SENSOR")
+    cg.add_define("ESPHOME_ENTITY_SENSOR_COUNT", 10)  # capacity for auto-created sensors
     cg.add(var.set_udl(config[CONF_UDL]))
     if CONF_ZONES in config:
         for zone in config[CONF_ZONES]:
