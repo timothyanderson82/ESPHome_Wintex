@@ -56,10 +56,10 @@ async def to_code(config):
     # Reserve StaticVector capacity for auto-created C++ sensors:
     # 4 panel status + 8 panel outputs = 12 binary sensors
     for _ in range(12):
-        CORE.register_component_for_platform("binary_sensor", None)
+        CORE.register_platform_component("binary_sensor", None)
     # 2 voltage sensors (system + battery)
     for _ in range(2):
-        CORE.register_component_for_platform("sensor", None)
+        CORE.register_platform_component("sensor", None)
     cg.add(var.set_udl(config[CONF_UDL]))
     if CONF_ZONES in config:
         for zone in config[CONF_ZONES]:
