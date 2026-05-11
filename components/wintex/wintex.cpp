@@ -78,21 +78,9 @@ void WintexZone::setup(Wintex *wintex, uint32_t zone_base_address, uint16_t zone
     this->publish_state(state);
   });
   wintex->register_sensor(status);
-  tamper = new WintexBinarySensor(block_address, zone_group_size, block_offset, 0x02);
-  tamper->register_as_binary_sensor(name + " tamper");
-  wintex->register_sensor(tamper);
-  test = new WintexBinarySensor(block_address, zone_group_size, block_offset, 0x08);
-  test->register_as_binary_sensor(name + " test");
-  wintex->register_sensor(test);
-  alarmed = new WintexBinarySensor(block_address, zone_group_size, block_offset, 0x10);
-  alarmed->register_as_binary_sensor(name + " alarmed");
-  wintex->register_sensor(alarmed);
   bypass = new WintexZoneBypassSwitch(wintex, block_address, zone_group_size, block_offset);
   bypass->register_as_switch(name + " bypassed");
   wintex->register_sensor(bypass);
-  auto_bypassed = new WintexBinarySensor(block_address, zone_group_size, block_offset, 0x40);
-  auto_bypassed->register_as_binary_sensor(name + " auto bypassed");
-  wintex->register_sensor(auto_bypassed);
   // Should only enable this once we are sorting the sensors by base address
   // faulty = new WintexBinarySensor(zone_base_address + 0x20, zone_group_size, zone_, 0x02);
   // faulty->register_as_binary_sensor(name + " faulty");
