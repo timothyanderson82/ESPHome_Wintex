@@ -219,7 +219,7 @@ class WintexZone : public binary_sensor::BinarySensor {
   // as well as the zone names, from the panel
   // Can be overridden by YAML configuration.
   void setup(Wintex *wintex, uint32_t zone_base_address, uint16_t zone_group_size, std::string zone_name);
-  WintexBinarySensor *status;
+  WintexBinarySensor *status, *alarmed;
   WintexSwitch *bypass;
 
   private:

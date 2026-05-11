@@ -53,9 +53,11 @@ async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
     await uart.register_uart_device(var, config)
+    num_zones = len(config.get(CONF_ZONES, []))
     # Reserve StaticVector capacity for auto-created C++ sensors:
-    # 4 panel status + 8 panel outputs = 12 binary sensors
-    for _ in range(12):
+    # Per zone: 1 hidden status + 1 alarmed = 2 per zone
+    # Panel: 4 status flags + 8 outputs = 12
+    for _ in range(num_zones * 2 + 12):
         CORE.register_platform_component("binary_sensor", None)
     # 2 voltage sensors (system + battery)
     for _ in range(2):

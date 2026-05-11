@@ -78,6 +78,9 @@ void WintexZone::setup(Wintex *wintex, uint32_t zone_base_address, uint16_t zone
     this->publish_state(state);
   });
   wintex->register_sensor(status);
+  alarmed = new WintexBinarySensor(block_address, zone_group_size, block_offset, 0x10);
+  alarmed->register_as_binary_sensor(name + " alarmed");
+  wintex->register_sensor(alarmed);
   bypass = new WintexZoneBypassSwitch(wintex, block_address, zone_group_size, block_offset);
   bypass->register_as_switch(name + " bypassed");
   wintex->register_sensor(bypass);
