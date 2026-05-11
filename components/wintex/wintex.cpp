@@ -375,11 +375,20 @@ void Wintex::setup_panel_sensors_() {
   }
 
   // Panel Outputs 1-8 at 0x0D58 (bit 0 = output 1, bit 7 = output 8)
+  // Confirmed via log analysis: 0xA0 when Stay Armed (bits 5+7), 0x00 disarmed
+  static const char *output_names[] = {
+    "Partition 1 2 Bell",          // bit 0 - Output 1
+    "Partition 1 2 Strobe",        // bit 1 - Output 2
+    "Partition 1 2 Bell 2",        // bit 2 - Output 3
+    "Partition 1 2 Duress Alarm",  // bit 3 - Output 4
+    "Partition 1 2 Bell 3",        // bit 4 - Output 5
+    "Partition 1 2 Armed Alarm",   // bit 5 - Output 6
+    "Partition 1 2 Away Armed",    // bit 6 - Output 7
+    "Partition 1 2 Stay Armed",    // bit 7 - Output 8
+  };
   for (int i = 0; i < 8; i++) {
-    char name[20];
-    snprintf(name, sizeof(name), "Panel Output %d", i + 1);
     auto *s = new WintexBinarySensor(0x0D58, 1, 0, 1 << i);
-    s->register_as_binary_sensor(name);
+    s->register_as_binary_sensor(output_names[i]);
     register_sensor(s);
   }
 
