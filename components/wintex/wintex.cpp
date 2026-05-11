@@ -267,6 +267,13 @@ void Wintex::update_sensors_() {
 }
 
 optional<AsyncWintexCommand> Wintex::handle_sensors_(WintexResponse response) {
+  if (response.type == WintexResponseType::HANGUP) {
+    ESP_LOGW(TAG, "Panel sent HANGUP during polling — session expired, re-logging in");
+    this->command_queue_.clear();
+    this->rx_message_.clear();
+    queue_command_(login_);
+    return {};
+  }
   if (response.type != WintexResponseType::READ_VOLATILE || response.len < 4) {
     ESP_LOGW(TAG, "Unexpected sensor response: type=0x%02X len=%u — advancing to next sensor",
              (uint8_t) response.type, response.len);
