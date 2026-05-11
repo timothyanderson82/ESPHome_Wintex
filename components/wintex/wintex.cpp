@@ -68,10 +68,10 @@ void WintexZone::setup(Wintex *wintex, uint32_t zone_base_address, uint16_t zone
   if (name.empty())
     name = zone_name;
   uint16_t zone_idx = this->zone_ - 1;
-  // Each block holds zone_group_size zones; blocks are spaced 0x20 apart in memory.
+  // Zones are consecutive 1-byte records from zone_base_address.
   uint16_t block = zone_idx / zone_group_size;
   uint8_t block_offset = zone_idx % zone_group_size;
-  uint32_t block_address = zone_base_address + block * 0x20;
+  uint32_t block_address = zone_base_address + block * zone_group_size;
   status = new WintexBinarySensor(block_address, zone_group_size, block_offset, 0x01);
   status->register_as_binary_sensor(name + " status", true);
   status->add_on_state_callback([this](bool state) {
