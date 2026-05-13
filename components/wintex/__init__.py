@@ -4,6 +4,7 @@ import esphome.config_validation as cv
 from esphome.components import uart
 from esphome.const import CONF_ID, CONF_DEVICE_CLASS, CONF_NAME, CONF_PASSWORD
 from esphome.core import CORE
+from esphome.core.entity_helpers import register_device_class, register_unit_of_measurement
 
 CODEOWNERS = ["@RoganDawes"]
 
@@ -63,6 +64,10 @@ async def to_code(config):
     for _ in range(2):
         CORE.register_platform_component("sensor", None)
     cg.add(var.set_udl(config[CONF_UDL]))
+    # Register voltage sensor metadata so configure_entity_() gets correct device_class + UOM indices.
+    dc_idx = register_device_class("voltage")
+    uom_idx = register_unit_of_measurement("V")
+    cg.add_define("WINTEX_VOLTAGE_ENTITY_FIELDS", (dc_idx << 0) | (uom_idx << 8))
     if CONF_ZONES in config:
         for zone in config[CONF_ZONES]:
             z = cg.new_Pvariable(zone[CONF_ID], zone[CONF_ZONE])

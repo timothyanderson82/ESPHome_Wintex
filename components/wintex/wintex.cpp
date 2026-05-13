@@ -405,12 +405,14 @@ void Wintex::setup_panel_sensors_() {
   // System and Battery Voltages at 0x0E78 (offsets 0 and 2)
   auto *sys_v = new WintexSensor(0x0E78, 4, 0);
   sys_v->set_accuracy_decimals(2);
-  sys_v->register_as_sensor("System Voltage");
+  sys_v->set_state_class(sensor::STATE_CLASS_MEASUREMENT);
+  sys_v->register_as_sensor("System Voltage", WINTEX_VOLTAGE_ENTITY_FIELDS);
   register_sensor(sys_v);
 
   auto *bat_v = new WintexSensor(0x0E78, 4, 2);
   bat_v->set_accuracy_decimals(2);
-  bat_v->register_as_sensor("Battery Voltage");
+  bat_v->set_state_class(sensor::STATE_CLASS_MEASUREMENT);
+  bat_v->register_as_sensor("Battery Voltage", WINTEX_VOLTAGE_ENTITY_FIELDS);
   register_sensor(bat_v);
 }
 
