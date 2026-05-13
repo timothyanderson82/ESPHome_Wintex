@@ -149,10 +149,10 @@ class WintexSensor : public WintexSensorBase, public sensor::Sensor {
   WintexSensor(uint32_t address, uint8_t length, uint8_t offset)
     : WintexSensorBase(address, length, offset) {}
 
-  void register_as_sensor(const std::string &name) {
+  void register_as_sensor(const std::string &name, uint32_t entity_fields = 0) {
     name_storage_ = name;
     uint32_t hash = fnv1_hash_object_id(name_storage_.c_str(), name_storage_.size());
-    this->configure_entity_(name_storage_.c_str(), hash, 0);
+    this->configure_entity_(name_storage_.c_str(), hash, entity_fields);
     App.register_sensor(this);
   }
 
