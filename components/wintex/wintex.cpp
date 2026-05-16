@@ -59,6 +59,19 @@ optional<AsyncWintexCommand> WintexZoneBypassSwitch::handle_response(WintexRespo
   return {};
 }
 
+void WintexKeypadButton::press_action() {
+  auto cmd = AsyncWintexCommand{
+    .cmd = WintexCommandType::PC_CONTROL,
+    .payload = {0x01, key_code_},
+    .callback = [](WintexResponse response) -> optional<AsyncWintexCommand> {
+      if (response.type != WintexResponseType::ACK)
+        ESP_LOGE(TAG, "Unexpected response to keypress: 0x%02X", (uint8_t) response.type);
+      return {};
+    },
+  };
+  wintex_->queue_command_(cmd);
+}
+
 void WintexZone::setup(Wintex *wintex, uint32_t zone_base_address, uint16_t zone_group_size, std::string zone_name) {
   if (setup_)
     return;
@@ -414,6 +427,25 @@ void Wintex::setup_panel_sensors_() {
   bat_v->set_state_class(sensor::STATE_CLASS_MEASUREMENT);
   bat_v->register_as_sensor("Battery Voltage", WINTEX_VOLTAGE_ENTITY_FIELDS);
   register_sensor(bat_v);
+
+  // Keypad buttons: Bypass and digits 0-9 via PC_CONTROL (0x4B)
+  static const struct { uint8_t key_code; const char *name; } keypad_buttons[] = {
+    { 0x0B, "Bypass" },
+    { 0x0A, "Key 0" },
+    { 0x01, "Key 1" },
+    { 0x02, "Key 2" },
+    { 0x03, "Key 3" },
+    { 0x04, "Key 4" },
+    { 0x05, "Key 5" },
+    { 0x06, "Key 6" },
+    { 0x07, "Key 7" },
+    { 0x08, "Key 8" },
+    { 0x09, "Key 9" },
+  };
+  for (auto &btn : keypad_buttons) {
+    auto *b = new WintexKeypadButton(this, btn.key_code);
+    b->register_as_button(btn.name);
+  }
 }
 
 void Wintex::queue_command_(AsyncWintexCommand command) {

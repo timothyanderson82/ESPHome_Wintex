@@ -1,4 +1,4 @@
-from esphome.components import time, binary_sensor, switch, sensor
+from esphome.components import time, binary_sensor, button, switch, sensor
 import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import uart
@@ -9,7 +9,7 @@ from esphome.core.entity_helpers import register_device_class, register_unit_of_
 CODEOWNERS = ["@RoganDawes"]
 
 DEPENDENCIES = ["uart"]
-AUTO_LOAD = ["binary_sensor", "sensor", "switch", "text_sensor"]
+AUTO_LOAD = ["binary_sensor", "button", "sensor", "switch", "text_sensor"]
 
 CONF_UDL = "udl"
 CONF_ZONE = "zone"
@@ -26,6 +26,7 @@ WintexZone = wintex_ns.class_("WintexZone", binary_sensor.BinarySensor, cg.Compo
 WintexBinarySensor = wintex_ns.class_("WintexBinarySensor", binary_sensor.BinarySensor, cg.Component)
 WintexSensor = wintex_ns.class_("WintexSensor", sensor.Sensor, cg.Component)
 WintexSwitch = wintex_ns.class_("WintexSwitch", switch.Switch, cg.Component)
+WintexKeypadButton = wintex_ns.class_("WintexKeypadButton", button.Button, cg.Component)
 
 CONFIG_ZONE_SCHEMA = (
     binary_sensor.binary_sensor_schema(WintexZone).extend(
@@ -63,6 +64,9 @@ async def to_code(config):
     # 2 voltage sensors (system + battery)
     for _ in range(2):
         CORE.register_platform_component("sensor", None)
+    # 11 keypad buttons (Bypass + digits 0-9)
+    for _ in range(11):
+        CORE.register_platform_component("button", None)
     cg.add(var.set_udl(config[CONF_UDL]))
     # Register voltage sensor metadata so configure_entity_() gets correct device_class + UOM indices.
     dc_idx = register_device_class("voltage")

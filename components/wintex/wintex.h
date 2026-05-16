@@ -5,6 +5,7 @@
 #include "esphome/core/application.h"
 #include "esphome/components/uart/uart.h"
 #include "esphome/components/binary_sensor/binary_sensor.h"
+#include "esphome/components/button/button.h"
 #include "esphome/components/sensor/sensor.h"
 #include "esphome/components/switch/switch.h"
 
@@ -18,6 +19,7 @@ namespace wintex {
 enum class WintexCommandType : uint8_t {
   COMMIT = 'U',
   HANGUP = 'H',
+  PC_CONTROL = 'K',
   READ_CONFIGURATION = 'O',
   READ_VOLATILE = 'R',
   SESSION = 'Z',
@@ -204,6 +206,26 @@ class WintexZoneBypassSwitch: public WintexSwitch {
     bool commit_{false};
 };
 
+class WintexKeypadButton : public button::Button {
+  friend class Wintex;
+ public:
+  WintexKeypadButton(Wintex *wintex, uint8_t key_code)
+      : wintex_(wintex), key_code_(key_code) {}
+
+  void register_as_button(const std::string &name) {
+    name_storage_ = name;
+    uint32_t hash = fnv1_hash_object_id(name_storage_.c_str(), name_storage_.size());
+    this->configure_entity_(name_storage_.c_str(), hash, 0);
+    App.register_button(this);
+  }
+
+ protected:
+  void press_action() override;
+  Wintex *wintex_;
+  uint8_t key_code_;
+  std::string name_storage_;
+};
+
 /**
  * @brief WintexZone represents an entire zone, with a number of binary_sensors
  * We expose the zone's status directly as a binary_sensor using a callback
@@ -230,6 +252,7 @@ class WintexZone : public binary_sensor::BinarySensor {
 class Wintex : protected WintexResponseHandler, public Component, public uart::UARTDevice {
   friend class WintexZone;
   friend class WintexZoneBypassSwitch;
+  friend class WintexKeypadButton;
  public:
   float get_setup_priority() const override { return setup_priority::LATE; }
   void setup() override;
